@@ -97,23 +97,12 @@ serve(async (req) => {
 
     console.log(`[Webhook] Processing ${event.type} (${event.id})`);
 
-    // 1. LOG RAW EVENT with Idempotency Check (FIX 1)
+    // 1. LOG RAW EVENT
     const { error: insertError } = await supabaseAdmin!.from('stripe_events').insert({
         id: event.id,
         type: event.type,
         payload: event
     });
-
-    if (insertError) {
-        // Postgres Duplicate Key Error Code: 23505
-        if (insertError.code === '23505') {
-            console.log(`[Webhook] Duplicate Event ${event.id}. Skipping.`);
-            return new Response(JSON.stringify({ received: true, status: 'duplicate' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-        }
-        console.error("Event Insert Error", insertError);
-        // Continue processing even if logging fails, unless it's critical? 
-        // Usually we want to persist the event before processing.
-    }
     
     await logToDb('START_PROCESS', { type: event.type, id: event.id });
 
@@ -167,7 +156,7 @@ serve(async (req) => {
                 }
             }
 
-            // TIER MAPPING VIA DB TABLE
+            // TIER MAPPING VIA DB TABLE (Required change)
             const priceItem = sub.items.data[0]?.price;
             let newPlanTier = null;
 
@@ -184,6 +173,7 @@ serve(async (req) => {
                     const msg = `Mapping missing for Price ID: ${priceItem.id}`;
                     await logToDb('MAPPING_MISSING', { price_id: priceItem.id });
                     await markEventError(event.id, msg);
+                    // We continue processing the status update
                 }
             } else {
                 await markEventError(event.id, "No price item found in subscription");
@@ -192,7 +182,6 @@ serve(async (req) => {
             const updateData: any = {
                 user_id: profile.id, // Mandatory for Upsert
                 stripe_subscription_id: sub.id,
-                stripe_customer_id: customerId, // FIX 3: Sync Customer ID
                 stripe_price_id: priceItem?.id,
                 status: status,
                 billing_cycle: inferCycle(priceItem?.recurring?.interval),
@@ -206,6 +195,7 @@ serve(async (req) => {
                 updateData.product_name = 'KOSMA'; 
             }
 
+            // POINT 1: Use UPSERT instead of UPDATE
             const { error } = await supabaseAdmin!.from('licenses').upsert(updateData, { onConflict: 'user_id' });
             
             if (error) {
@@ -226,26 +216,16 @@ serve(async (req) => {
     // --- B. CHECKOUT SUCCESS ---
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        let userId = null;
+        let userId = session.metadata?.user_id;
 
-        // FIX 4: UUID Security for metadata.user_id
-        if (session.metadata?.user_id) {
-             if (isUUID(session.metadata.user_id)) {
-                 userId = session.metadata.user_id;
-             } else {
-                 await logToDb('METADATA_INVALID_UUID', { invalid_id: session.metadata.user_id }, true);
-             }
-        }
-
-        // Validate Client Reference ID (Existing UUID check from previous code, kept for consistency)
-        if (!userId) {
-            const clientRef = session.client_reference_id;
-            if (clientRef) {
-                if (isUUID(clientRef)) {
-                    userId = clientRef;
-                } else {
-                    await logToDb('CHECKOUT_INVALID_REF', { ref: clientRef, msg: 'Not a UUID' }, true);
-                }
+        // POINT 2: Validate UUID Security
+        const clientRef = session.client_reference_id;
+        if (clientRef) {
+            if (isUUID(clientRef)) {
+                userId = clientRef;
+            } else {
+                await logToDb('CHECKOUT_INVALID_REF', { ref: clientRef, msg: 'Not a UUID' }, true);
+                // We do NOT use this ID, but we continue trying email fallback
             }
         }
         
@@ -259,8 +239,9 @@ serve(async (req) => {
             await logToDb('CHECKOUT_LINKED', { user_id: userId, customer: session.customer });
             await markEventProcessed(event.id);
         } else {
+            // POINT 3: Fallback Logging if no mapping possible
             await logToDb('CHECKOUT_UNMAPPED', { session_id: session.id, email: session.customer_details?.email }, true);
-            await markEventProcessed(event.id);
+            await markEventProcessed(event.id); // Mark processed so Stripe stops retrying
         }
     }
 
@@ -268,29 +249,20 @@ serve(async (req) => {
     if (event.type === 'invoice.payment_succeeded') {
         const inv = event.data.object;
         if (inv.billing_reason === 'subscription_create' || inv.billing_reason === 'subscription_cycle') {
+            const { data: profile } = await supabaseAdmin!.from('profiles').select('id').eq('stripe_customer_id', inv.customer).maybeSingle();
             
-            // FIX 2: Deduplication Check
-            const { data: existing } = await supabaseAdmin!.from('invoices').select('id').eq('stripe_invoice_id', inv.id).maybeSingle();
-            
-            if (existing) {
+            if (profile) {
+                await supabaseAdmin!.from('invoices').insert({
+                    user_id: profile.id,
+                    amount: inv.amount_paid / 100,
+                    currency: inv.currency.toUpperCase(),
+                    status: 'paid',
+                    stripe_invoice_id: inv.id,
+                    invoice_pdf_url: inv.invoice_pdf,
+                    invoice_hosted_url: inv.hosted_invoice_url,
+                    project_name: 'KOSMA Subscription'
+                });
                 await markEventProcessed(event.id);
-                console.log(`[Webhook] Invoice ${inv.id} already exists.`);
-            } else {
-                const { data: profile } = await supabaseAdmin!.from('profiles').select('id').eq('stripe_customer_id', inv.customer).maybeSingle();
-                
-                if (profile) {
-                    await supabaseAdmin!.from('invoices').insert({
-                        user_id: profile.id,
-                        amount: inv.amount_paid / 100,
-                        currency: inv.currency.toUpperCase(),
-                        status: 'paid',
-                        stripe_invoice_id: inv.id,
-                        invoice_pdf_url: inv.invoice_pdf,
-                        invoice_hosted_url: inv.hosted_invoice_url,
-                        project_name: 'KOSMA Subscription'
-                    });
-                    await markEventProcessed(event.id);
-                }
             }
         }
     }
