@@ -1,19 +1,66 @@
 
-export enum GreetingTheme {
-  CLASSIC = 'Classic',
-  FUTURISTIC = 'Futuristic',
-  POETIC = 'Poetic',
-  PIRATE = 'Pirate',
-  QUANTUM = 'Quantum'
+export enum UserRole {
+  ADMIN = 'admin',
+  CUSTOMER = 'customer'
 }
 
-export interface GeneratedGreeting {
-  text: string;
-  language: string;
-  meaning: string;
+export enum SubscriptionStatus {
+  ACTIVE = 'active',
+  PAST_DUE = 'past_due',
+  CANCELED = 'canceled',
+  NONE = 'none',
+  TRIAL = 'trial'
 }
 
-export interface ChartData {
+export enum PlanTier {
+  FREE = 'Free',
+  BUDGET = 'Budget',
+  COST_CONTROL = 'Cost Control',
+  PRODUCTION = 'Production'
+}
+
+export interface BillingAddress {
+  companyName?: string;
+  vatId?: string;
+  street: string;
+  city: string;
+  zip: string;
+  country: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
   name: string;
-  value: number;
+  role: UserRole;
+  registeredAt: string;
+  stripeCustomerId?: string;
+  billingAddress?: BillingAddress;
+}
+
+export interface License {
+  id: string;
+  userId: string;
+  productName: string; 
+  planTier: PlanTier;
+  stripeSubscriptionId?: string;
+  stripeCustomerId?: string;
+  billingCycle: 'monthly' | 'yearly' | 'none' | 'trial';
+  status: SubscriptionStatus;
+  validUntil: string | null; 
+  licenseKey: string | null;
+  billingProjectName?: string; 
+  cancelAtPeriodEnd?: boolean;
+  canceledAt?: string;
+  currentPeriodEnd?: string;
+}
+
+export interface Invoice {
+  id: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: 'paid' | 'open';
+  pdfUrl: string;
+  projectName?: string;
 }

@@ -1,5 +1,5 @@
 {
-  "name": "Hallo Welt Explorer",
-  "description": "Ein elegantes, KI-gestütztes One-Pager-Erlebnis, das die Welt mit Gemini-Technologie begrüßt.",
+  "name": "KOSMA_web",
+  "description": "A prototype for a SaaS platform with Customer and Admin dashboards, simulating Supabase Auth, Stripe payments, and License management.",
   "requestFramePermissions": []
 }

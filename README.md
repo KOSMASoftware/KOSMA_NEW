@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# KOSMA – SaaS Production Management Prototype
 
-# Run and deploy your AI Studio app
+**Status:** Production Candidate (v0.1.5)
+**Branch:** `ai-fixes`
+**Live Domain:** `https://kosma.io`
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/11Mrf2518i3-CJIbxPpgRaeJGhjgX43DR
+# 🚀 CLEAN START ON ai-fixes
+Dieser Branch dient dazu, die UI-Konflikte des Main-Branches zu umgehen.
 
-## Run Locally
+### Nächste Schritte:
+1. Terminal: `git checkout ai-fixes`
+2. Dieses Update anwenden.
+3. System-Spezifikation definieren.
 
-**Prerequisites:**  Node.js
+---
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# 🚨 NOTFALL-SETUP (SQL)
+Wenn Login, Lizenzen oder DB-Rechte kaputt sind:
+1. Öffne `supabase/setup.sql`.
+2. Copy & Paste in den **Supabase SQL Editor**.
+3. **Run**.
