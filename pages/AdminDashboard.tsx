@@ -4,8 +4,7 @@ import { Routes, Route, useNavigate, useSearchParams, Link, useLocation, Navigat
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { liveSystemService, SystemCheckResult } from '../services/liveSystemService';
-// Fix: Removed non-existent 'Project' from types import list
-import { License, SubscriptionStatus, User, UserRole, PlanTier, Invoice } from '../types';
+import { License, SubscriptionStatus, User, UserRole, PlanTier, Project, Invoice } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, LineChart } from 'recharts';
 import { Users, CreditCard, TrendingUp, Search, X, Download, Monitor, FolderOpen, Calendar, AlertCircle, CheckCircle, Clock, UserX, Mail, ArrowRight, Briefcase, Activity, Server, Database, Shield, Lock, Zap, LayoutDashboard, LineChart as LineChartIcon, ShieldCheck, RefreshCw, AlertTriangle, ChevronUp, ChevronDown, Filter, ArrowUpDown, ExternalLink, Code, Terminal, Copy, Megaphone, Target, ArrowUpRight, CalendarPlus, History, Building, CalendarMinus, Plus, Minus, Check, Bug, Key, Globe, Info, Play, Wifi, Edit } from 'lucide-react';
 
